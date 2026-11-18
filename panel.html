@@ -1,0 +1,1983 @@
+<!doctype html>
+<html lang="zh-CN" data-scheme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hosts</title>
+<style>
+  :root {
+    --surface-solid: #ffffff;
+    --surface-raised: #f6f6f3;
+    --ink: #1d1d1f;
+    --ink-soft: #6b6b70;
+    --line: #deded9;
+    --accent: #2f6fed;
+    --accent-ink: #ffffff;
+    --danger: #c0392b;
+    --success: #218739;
+    --code-surface: #f3f3ef;
+    --code-ink: #26261f;
+    --code-comment: #6a737d;
+    --font-body: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+    --radius-xs: 4px;
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+    --radius-xl: 20px;
+    --radius-pill: 999px;
+    color-scheme: light;
+  }
+  /* The host sends the same names as inline custom properties on <html>,
+     which outrank this block; these values paint the first frame. */
+  :root[data-scheme="dark"] {
+    --surface-solid: #1c1c1e;
+    --surface-raised: #262628;
+    --ink: #f2f2f4;
+    --ink-soft: #a1a1a6;
+    --line: #3a3a3d;
+    --accent: #6f9dff;
+    --accent-ink: #101014;
+    --danger: #ff7b6f;
+    --success: #5fd07e;
+    --code-surface: #232326;
+    --code-ink: #f2f2f4;
+    --code-comment: #7f8c98;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  /* The host hands this page the whole band below the tabs. WebKit paints
+     nothing of its own below a document that stops short, so the root paints
+     the surface and the page owns the scroll (D-1085). */
+  html {
+    height: 100%;
+    background: var(--surface-solid);
+  }
+  body {
+    height: 100%;
+    margin: 0;
+    background: var(--surface-solid);
+    color: var(--ink);
+    font: 13px/1.5 var(--font-body);
+    overflow: hidden;
+  }
+  /* The frame is fixed; the list inside it is the one thing that scrolls, so
+     the header, the search row, the rail and the footer stay where they are. */
+  .page {
+    height: 100%;
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 16px 26px 18px;
+    display: grid;
+    grid-template-rows: auto auto minmax(0, 1fr);
+    overflow: hidden;
+  }
+  .head { grid-row: 1; }
+  .notice { grid-row: 2; }
+  .shell { grid-row: 3; }
+
+  .head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--line);
+  }
+  .head-copy { min-width: 0; }
+  .eyebrow {
+    margin: 0 0 4px;
+    color: var(--ink-soft);
+    font-size: 9.5px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+  }
+  h1 {
+    margin: 0;
+    font: 600 22px/1.15 var(--font-body);
+    letter-spacing: 0.005em;
+  }
+  .meta {
+    margin: 6px 0 0;
+    color: var(--ink-soft);
+    font-size: 11.5px;
+    font-variant-numeric: tabular-nums;
+  }
+  .meta:empty { display: none; }
+  .head-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: none;
+    padding-top: 3px;
+  }
+
+  button { font: inherit; }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: 30px;
+    padding: 0 12px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    background: var(--surface-raised);
+    color: var(--ink);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .btn:hover { border-color: var(--ink-soft); }
+  .btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .btn:disabled { opacity: 0.55; cursor: default; }
+  .btn.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-ink);
+  }
+  .btn.primary:hover { filter: brightness(1.05); }
+  .btn svg { width: 14px; height: 14px; }
+
+  .dirty {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 22px;
+    padding: 0 9px 0 8px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-pill);
+    color: var(--ink-soft);
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .dirty::before {
+    content: "";
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+  .dirty[data-tone="warn"] {
+    color: var(--accent);
+    border-color: color-mix(in oklab, var(--accent) 40%, var(--line));
+    background: color-mix(in oklab, var(--accent) 7%, var(--surface-solid));
+  }
+  .dirty[hidden] { display: none; }
+
+  .notice {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 14px 0 0;
+    padding: 9px 12px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    background: var(--surface-raised);
+    color: var(--ink);
+  }
+  .notice[data-tone="success"] { color: var(--success); }
+  .notice[data-tone="danger"] { color: var(--danger); }
+  .notice[hidden] { display: none; }
+  .notice-text {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    min-width: 0;
+  }
+  .notice-text::before {
+    content: "";
+    flex: none;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    transform: translateY(-1px);
+  }
+  .notice-actions {
+    display: flex;
+    gap: 8px;
+    flex: none;
+  }
+  .notice-actions .btn { height: 26px; font-size: 11px; }
+
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 10px;
+  }
+  .search {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    flex: 1;
+    min-width: 0;
+    height: 30px;
+    padding: 0 10px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    background: var(--surface-raised);
+    color: var(--ink-soft);
+  }
+  .search:focus-within {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .search svg { width: 13px; height: 13px; flex: none; }
+  .search input {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    outline: none;
+    background: transparent;
+    color: var(--ink);
+    font: inherit;
+  }
+  .search input::placeholder { color: var(--ink-soft); }
+  .count {
+    color: var(--ink-soft);
+    font-size: 11.5px;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .shell {
+    display: grid;
+    grid-template-columns: 212px minmax(0, 1fr);
+    gap: 22px;
+    align-items: stretch;
+    min-height: 0;
+    margin-top: 12px;
+  }
+  /* The rail is a card of its own: a heading, the two fixed views, then the
+     file's own groups. A row's actions sit in the same fixed slot as its
+     count, so revealing them never moves the name. It only takes a scrollbar
+     when the file has more groups than the column can show. */
+  .rail {
+    align-self: start;
+    display: grid;
+    align-content: start;
+    gap: 2px;
+    max-height: 100%;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 7px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    background: var(--surface-raised);
+  }
+  .rail-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 1px 4px 9px;
+  }
+  .rail-title {
+    flex: 1;
+    color: var(--ink-soft);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+  }
+  .rail-total {
+    color: var(--ink-soft);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+  }
+  .rail-head .icon { width: 24px; height: 24px; }
+  .rail-head .icon:hover { background: color-mix(in oklab, var(--ink) 6%, transparent); }
+  .groups { display: grid; gap: 2px; }
+  .rail-sep {
+    height: 1px;
+    margin: 6px 9px;
+    background: var(--line);
+  }
+  .group-row {
+    position: relative;
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    border-radius: var(--radius-sm);
+  }
+  .group-row:hover { background: color-mix(in oklab, var(--ink) 5%, transparent); }
+  .group-row[data-selected="true"] {
+    background: color-mix(in oklab, var(--accent) 12%, transparent);
+  }
+  .group-row[data-selected="true"]::before {
+    content: "";
+    position: absolute;
+    left: 3px;
+    top: 10px;
+    bottom: 10px;
+    width: 2px;
+    border-radius: var(--radius-pill);
+    background: var(--accent);
+  }
+  .group-main {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    min-width: 0;
+    height: 34px;
+    padding: 0 2px 0 12px;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--ink);
+    /* One step above the list's 12px, at medium weight: the sheet's Latin
+       comes from Avenir Next and the Chinese from PingFang, and a heavier
+       face than this makes the rail shout over the rows it filters. */
+    font-size: 13px;
+    font-weight: 500;
+    text-align: left;
+    cursor: pointer;
+  }
+  .group-main:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+  .group-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  /* Selection is the accent colour, the tint and the bar; no row is heavier
+     than another. */
+  .group-row[data-selected="true"] .group-main {
+    color: var(--accent);
+  }
+  .group-slot {
+    position: relative;
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    width: 48px;
+    height: 34px;
+  }
+  .group-count {
+    padding-right: 9px;
+    color: var(--ink-soft);
+    font-size: 11px;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    transition: opacity 90ms ease;
+  }
+  .group-row[data-selected="true"] .group-count { color: var(--accent); }
+  .group-actions {
+    position: absolute;
+    right: 3px;
+    display: flex;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 90ms ease;
+  }
+  .group-row:hover .group-actions,
+  .group-row:focus-within .group-actions {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .group-row:hover .group-count,
+  .group-row:focus-within .group-count { opacity: 0; }
+  .group-row .icon { width: 22px; height: 22px; }
+  .group-row .icon:hover {
+    background: color-mix(in oklab, var(--ink) 8%, transparent);
+  }
+  .group-editor {
+    display: grid;
+    gap: 7px;
+    margin-top: 4px;
+    padding: 9px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    background: var(--surface-solid);
+  }
+  .group-editor[hidden] { display: none; }
+  .group-editor input {
+    width: 100%;
+    height: 28px;
+    padding: 0 8px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    background: var(--surface-solid);
+    color: var(--ink);
+    font: inherit;
+    font-size: 12px;
+  }
+  .group-editor input:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+  .group-error {
+    margin: 0;
+    color: var(--danger);
+    font-size: 11px;
+  }
+  .group-error[hidden] { display: none; }
+  .group-editor-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
+  }
+  .group-editor-actions .btn { height: 26px; padding: 0 9px; font-size: 11px; }
+  .rail-hint {
+    margin: 6px 0 0;
+    padding: 9px 9px 2px;
+    border-top: 1px solid var(--line);
+    color: var(--ink-soft);
+    font-size: 11px;
+    line-height: 1.6;
+  }
+  /* The content column is the frame's own height: search, editor and footer
+     hold their rows, and the list takes what is left and scrolls in place. */
+  .content {
+    display: grid;
+    grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+    min-width: 0;
+    min-height: 0;
+  }
+  .toolbar { grid-row: 1; }
+  .editor { grid-row: 2; }
+  .loading { grid-row: 3; }
+  .list, .empty { grid-row: 4; }
+  .foot { grid-row: 5; }
+
+  .editor {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 14px;
+    margin: 0 0 12px;
+    padding: 12px 14px 13px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    background: var(--surface-raised);
+  }
+  .editor[hidden] { display: none; }
+  .editor-title {
+    grid-column: 1 / -1;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .field { display: grid; gap: 4px; min-width: 0; }
+  .field > span {
+    color: var(--ink-soft);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+  }
+  .field input {
+    height: 30px;
+    padding: 0 9px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    background: var(--surface-solid);
+    color: var(--ink);
+    font: 12px/1 var(--font-mono);
+    outline: none;
+  }
+  .field input:focus { border-color: var(--accent); }
+  .field input:disabled {
+    background: transparent;
+    color: var(--ink-soft);
+  }
+  .editor-hint {
+    grid-column: 1 / -1;
+    margin: 0;
+    color: var(--ink-soft);
+    font-size: 11px;
+  }
+  .editor-error {
+    grid-column: 1 / -1;
+    margin: 0;
+    color: var(--danger);
+    font-size: 11px;
+  }
+  .editor-error[hidden] { display: none; }
+  .editor-actions {
+    grid-column: 1 / -1;
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  /* One sheet, hairline rows: the list reads as the file it is. A short file
+     keeps the card short; a long one fills the column and scrolls inside the
+     card, so the rail, the search row and the footer never move. */
+  .list {
+    align-self: start;
+    max-height: 100%;
+    min-height: 0;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    background: var(--surface-raised);
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+  }
+  .list:empty { display: none; }
+
+  .row {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    padding: 7px 12px;
+  }
+  .row + .row { border-top: 1px solid var(--line); }
+  .row:hover { background: color-mix(in oklab, var(--ink) 3%, transparent); }
+  .row[data-editing="true"] {
+    background: color-mix(in oklab, var(--accent) 7%, transparent);
+  }
+  .row[data-enabled="false"] .ip,
+  .row[data-enabled="false"] .names { color: var(--ink-soft); }
+
+  .switch {
+    position: relative;
+    display: inline-flex;
+    flex: none;
+    width: 34px;
+    height: 20px;
+  }
+  .switch input {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+  .switch .track {
+    width: 100%;
+    height: 100%;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-pill);
+    background: var(--surface-solid);
+    transition: background 120ms ease, border-color 120ms ease;
+    pointer-events: none;
+  }
+  .switch .track::after {
+    content: "";
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--ink-soft);
+    transition: transform 120ms ease, background 120ms ease;
+  }
+  .switch input:checked + .track {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+  .switch input:checked + .track::after {
+    transform: translateX(14px);
+    background: var(--accent-ink);
+  }
+  .switch input:focus-visible + .track {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .switch input:disabled + .track { opacity: 0.5; }
+
+  .row-main { min-width: 0; }
+  .row-line {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    min-width: 0;
+  }
+  .ip {
+    flex: none;
+    color: var(--ink-soft);
+    font: 600 12px/1.4 var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+  .names {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    color: var(--ink);
+    font: 12px/1.4 var(--font-mono);
+  }
+  .comment {
+    margin: 1px 0 0;
+    color: var(--ink-soft);
+    font-size: 11px;
+    overflow-wrap: anywhere;
+  }
+  .comment[hidden] { display: none; }
+
+  .group-tag {
+    margin-left: 8px;
+    color: var(--ink-soft);
+    font-size: 11px;
+    white-space: nowrap;
+  }
+
+  .row-actions {
+    display: flex;
+    gap: 2px;
+    flex: none;
+    opacity: 0;
+    transition: opacity 90ms ease;
+  }
+  .row:hover .row-actions,
+  .row:focus-within .row-actions,
+  .row[data-editing="true"] .row-actions { opacity: 1; }
+  .icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--ink-soft);
+    cursor: pointer;
+  }
+  .icon:hover {
+    background: var(--surface-solid);
+    color: var(--ink);
+  }
+  .icon[data-act="delete"]:hover { color: var(--danger); }
+  .icon:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+  .icon svg { width: 14px; height: 14px; }
+
+  .empty {
+    align-self: start;
+    margin: 0;
+    padding: 30px 16px;
+    border: 1px dashed var(--line);
+    border-radius: var(--radius-md);
+    color: var(--ink-soft);
+    font-size: 12px;
+    text-align: center;
+  }
+  .empty[hidden] { display: none; }
+
+  .foot {
+    display: grid;
+    gap: 10px;
+    margin-top: 14px;
+    padding-top: 10px;
+    border-top: 1px solid var(--line);
+    color: var(--ink-soft);
+    font-size: 11px;
+  }
+  .foot-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 14px;
+    margin: 0;
+    font-variant-numeric: tabular-nums;
+  }
+  .foot-line > span:first-child {
+    color: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 11px;
+  }
+  .foot-actions {
+    display: flex;
+    gap: 16px;
+    margin-left: auto;
+  }
+  .foot-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px 16px;
+    flex-wrap: wrap;
+  }
+  .link {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--accent);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .link:disabled { color: var(--ink-soft); cursor: default; }
+  .link:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  /* A file shown as a file: numbered lines on the code paper, comments quiet.
+     It fills the frame below the file view's own header and footer, so a long
+     file scrolls the screen rather than a box cut out of it. */
+  .code {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 12px 0;
+    color: var(--code-ink);
+    font: 11.5px/1.65 var(--font-mono);
+  }
+  .code-line {
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr);
+    gap: 10px;
+    padding: 0 12px;
+  }
+  .code-line:hover { background: color-mix(in oklab, var(--ink) 4%, transparent); }
+  .code-number {
+    color: var(--ink-soft);
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    user-select: none;
+    opacity: 0.75;
+  }
+  .code-text {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+  .code-line[data-kind="comment"] .code-text { color: var(--code-comment); }
+  .code-line[data-kind="blank"] .code-number { opacity: 0.4; }
+
+  /* A file takes the whole frame, never a box inside it (D-1122): the write
+     preview and a stored version are the same view, and when the file is
+     longer than the screen the one scrollbar runs the frame's own height. */
+  .file-view {
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+    display: grid;
+    background: var(--surface-solid);
+  }
+  .file-view[hidden] { display: none; }
+  .file-sheet {
+    display: grid;
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+    grid-template-areas: "head" "choices" "file" "foot";
+    min-height: 0;
+    width: 100%;
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 16px 26px 18px;
+    box-sizing: border-box;
+  }
+  /* Named rows keep the file in the row that grows even while the backup
+     chips are hidden for a preview. */
+  .file-sheet .code { grid-area: file; }
+  .file-head {
+    grid-area: head;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--line);
+  }
+  .file-title {
+    margin: 0;
+    font: 600 17px/1.2 var(--font-body);
+  }
+  .file-head .eyebrow { margin-bottom: 3px; }
+  .backup-choices {
+    grid-area: choices;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .backup-choices[hidden] { display: none; }
+  .backup-choice {
+    height: 26px;
+    padding: 0 10px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-pill);
+    background: var(--surface-raised);
+    color: var(--ink-soft);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+  }
+  .backup-choice:hover { color: var(--ink); border-color: var(--ink-soft); }
+  .backup-choice[data-selected="true"] {
+    border-color: var(--accent);
+    background: color-mix(in oklab, var(--accent) 10%, var(--surface-raised));
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .backup-choice:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .file-foot {
+    grid-area: foot;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding-top: 10px;
+    border-top: 1px solid var(--line);
+  }
+  .file-meta {
+    color: var(--ink-soft);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+  }
+  .file-actions { display: flex; gap: 8px; }
+  .file-actions .btn[hidden] { display: none; }
+
+  .loading {
+    color: var(--ink-soft);
+    font-size: 12px;
+    padding: 24px 0;
+  }
+  .loading[hidden] { display: none; }
+
+  /* A window this narrow has no second column and no room for a card with its
+     own scrollbar: the rail turns into chips, the page stacks and the document
+     scrolls again. */
+  @media (max-width: 720px) {
+    body { overflow: auto; }
+    .page {
+      height: auto;
+      min-height: 100%;
+      display: block;
+      overflow: visible;
+    }
+    .shell { display: block; }
+    .rail { max-height: none; overflow: visible; margin-bottom: 12px; }
+    .content { display: block; }
+    .list { max-height: none; overflow: visible; }
+    .rail {
+      position: static;
+    }
+    .groups { display: flex; flex-wrap: wrap; gap: 4px; }
+    .group-row {
+      flex: 0 0 auto;
+      background: color-mix(in oklab, var(--ink) 5%, transparent);
+    }
+    .group-main { padding: 0 3px 0 10px; }
+    .group-slot { width: auto; }
+    /* No hover on a narrow screen: a chip carries its count and nothing else. */
+    .group-actions { display: none; }
+    .rail-hint { display: none; }
+    /* No hover on a narrow screen, so the row keeps its actions on show. */
+    .row-actions { opacity: 1; }
+  }
+
+  @media (max-width: 560px) {
+    .page { padding: 16px 16px 24px; }
+    .head { flex-direction: column; gap: 12px; }
+    .head-actions { padding-top: 0; }
+    .editor { grid-template-columns: minmax(0, 1fr); }
+    .toolbar { flex-wrap: wrap; }
+    .search { flex-basis: 100%; }
+    .foot-actions { margin-left: 0; }
+    .file-sheet { padding: 14px 16px 16px; }
+    .file-foot { flex-wrap: wrap; }
+    .code-line { grid-template-columns: 32px minmax(0, 1fr); gap: 8px; }
+  }
+</style>
+</head>
+<body>
+<main class="page">
+  <header class="head">
+    <div class="head-copy">
+      <p class="eyebrow">HOSTS</p>
+      <h1>/etc/hosts</h1>
+      <p id="meta" class="meta"></p>
+    </div>
+    <div class="head-actions">
+      <span id="dirty" class="dirty" hidden>未写入</span>
+      <button id="reload" class="btn" type="button">重新加载</button>
+      <button id="apply" class="btn primary" type="button">应用</button>
+    </div>
+  </header>
+
+  <p id="notice" class="notice" hidden>
+    <span id="notice-text" class="notice-text"></span>
+    <span id="notice-actions" class="notice-actions"></span>
+  </p>
+
+  <div class="shell">
+    <aside class="rail" aria-label="分组">
+      <div class="rail-head">
+        <span class="rail-title">分组</span>
+        <span id="group-total" class="rail-total"></span>
+        <button id="group-add" class="icon" type="button" aria-label="新建分组" title="新建分组">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+            <path d="M8 3.5v9M3.5 8h9"></path>
+          </svg>
+        </button>
+      </div>
+      <div id="groups" class="groups"></div>
+      <form id="group-editor" class="group-editor" hidden>
+        <input id="group-name" type="text" placeholder="分组名" aria-label="分组名" autocomplete="off" spellcheck="false">
+        <p id="group-error" class="group-error" hidden></p>
+        <div class="group-editor-actions">
+          <button id="group-cancel" class="btn" type="button">取消</button>
+          <button id="group-save" class="btn primary" type="submit">保存</button>
+        </div>
+      </form>
+      <p class="rail-hint">分组就是文件里的注释行；新建分组会先加一条条目。</p>
+    </aside>
+
+    <section class="content">
+      <div class="toolbar">
+        <label class="search">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+            <circle cx="7" cy="7" r="4.25"></circle>
+            <path d="M10.2 10.2 13.5 13.5"></path>
+          </svg>
+          <input id="filter" type="search" placeholder="筛选地址、主机名或备注" autocomplete="off" spellcheck="false">
+        </label>
+        <button id="add" class="btn" type="button">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+            <path d="M8 3.5v9M3.5 8h9"></path>
+          </svg>
+          新增条目
+        </button>
+        <span id="count" class="count"></span>
+      </div>
+
+      <form id="editor" class="editor" hidden>
+        <div id="editor-title" class="editor-title">新增条目</div>
+        <label class="field">
+          <span>地址</span>
+          <input id="field-ip" type="text" placeholder="192.168.1.10" autocomplete="off" spellcheck="false">
+        </label>
+        <label class="field">
+          <span>主机名</span>
+          <input id="field-names" type="text" placeholder="app.local api.local" autocomplete="off" spellcheck="false">
+        </label>
+        <label class="field">
+          <span>备注（可选）</span>
+          <input id="field-comment" type="text" placeholder="开发机" autocomplete="off">
+        </label>
+        <label class="field">
+          <span>分组（可选）</span>
+          <input id="field-group" type="text" list="group-choices" placeholder="不分组" autocomplete="off">
+        </label>
+        <datalist id="group-choices"></datalist>
+        <p id="editor-hint" class="editor-hint" hidden></p>
+        <p id="editor-error" class="editor-error" hidden></p>
+        <div class="editor-actions">
+          <button id="editor-cancel" class="btn" type="button">取消</button>
+          <button id="editor-save" class="btn primary" type="submit">保存</button>
+        </div>
+      </form>
+
+      <p id="loading" class="loading" hidden>正在读取 /etc/hosts…</p>
+      <div id="list" class="list" aria-live="polite"></div>
+      <p id="empty" class="empty" hidden>还没有可编辑的条目。用「新增条目」添加一条，或在下面预览原文件。</p>
+
+      <section class="foot">
+        <div class="foot-row">
+          <p id="foot-line" class="foot-line"></p>
+          <div class="foot-actions">
+            <button id="preview-open" class="link" type="button">预览写入内容</button>
+            <button id="backups-open" class="link" type="button" hidden>备份</button>
+          </div>
+        </div>
+      </section>
+    </section>
+  </div>
+
+  <div id="file-view" class="file-view" hidden>
+    <section class="file-sheet" role="dialog" aria-modal="true" aria-labelledby="file-title">
+      <header class="file-head">
+        <div>
+          <p id="file-eyebrow" class="eyebrow">写入</p>
+          <h2 id="file-title" class="file-title">写入预览</h2>
+        </div>
+        <button id="file-close" class="icon" type="button" aria-label="关闭" title="关闭">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+            <path d="M4.5 4.5l7 7M11.5 4.5l-7 7"></path>
+          </svg>
+        </button>
+      </header>
+      <div id="backup-choices" class="backup-choices" role="tablist" aria-label="备份版本" hidden></div>
+      <div id="file-text" class="code"></div>
+      <footer class="file-foot">
+        <span id="file-meta" class="file-meta"></span>
+        <span class="file-actions">
+          <button id="file-dismiss" class="btn" type="button">关闭</button>
+          <button id="backup-restore" class="btn primary" type="button" hidden>恢复这一份</button>
+        </span>
+      </footer>
+    </section>
+  </div>
+</main>
+
+<script>
+(function () {
+  "use strict";
+
+  var PLUGIN_ID = "com.mypaste.hosts";
+  var COMMAND_ID = "hosts.request";
+
+  var root = document.documentElement;
+  var els = {
+    meta: document.getElementById("meta"),
+    dirty: document.getElementById("dirty"),
+    reload: document.getElementById("reload"),
+    apply: document.getElementById("apply"),
+    notice: document.getElementById("notice"),
+    noticeText: document.getElementById("notice-text"),
+    noticeActions: document.getElementById("notice-actions"),
+    filter: document.getElementById("filter"),
+    add: document.getElementById("add"),
+    count: document.getElementById("count"),
+    groups: document.getElementById("groups"),
+    groupTotal: document.getElementById("group-total"),
+    groupAdd: document.getElementById("group-add"),
+    groupEditor: document.getElementById("group-editor"),
+    groupName: document.getElementById("group-name"),
+    groupError: document.getElementById("group-error"),
+    groupCancel: document.getElementById("group-cancel"),
+    editor: document.getElementById("editor"),
+    editorTitle: document.getElementById("editor-title"),
+    editorHint: document.getElementById("editor-hint"),
+    editorError: document.getElementById("editor-error"),
+    editorCancel: document.getElementById("editor-cancel"),
+    fieldIP: document.getElementById("field-ip"),
+    fieldNames: document.getElementById("field-names"),
+    fieldComment: document.getElementById("field-comment"),
+    fieldGroup: document.getElementById("field-group"),
+    groupChoices: document.getElementById("group-choices"),
+    loading: document.getElementById("loading"),
+    list: document.getElementById("list"),
+    empty: document.getElementById("empty"),
+    footLine: document.getElementById("foot-line"),
+    previewOpen: document.getElementById("preview-open"),
+    backupsOpen: document.getElementById("backups-open"),
+    fileView: document.getElementById("file-view"),
+    fileEyebrow: document.getElementById("file-eyebrow"),
+    fileTitle: document.getElementById("file-title"),
+    fileClose: document.getElementById("file-close"),
+    fileText: document.getElementById("file-text"),
+    fileMeta: document.getElementById("file-meta"),
+    fileDismiss: document.getElementById("file-dismiss"),
+    backupChoices: document.getElementById("backup-choices"),
+    backupRestore: document.getElementById("backup-restore")
+  };
+
+  var pending = new Map();
+  var sequence = 0;
+  var busy = false;
+  var snapshot = null;
+  var entries = [];
+  var baseline = "";
+  var editing = null;
+  var filter = "";
+  var noticeRun = null;
+  // The rail's selection: null is every entry, "" is the entries with no
+  // heading, anything else is that group's name.
+  var selected = null;
+  // Group changes made on the page, in the order they were made. They travel
+  // with every preview and apply, and the runtime replays them on the file.
+  var groupEdits = [];
+  var groupEditing = null;
+  // The file view: one place that shows a file, whether it is the write
+  // preview or a stored version. `null` while it is closed.
+  var viewMode = null;
+  // The backups view: the version on screen, and a token so a slow read never
+  // replaces a newer selection.
+  var backupKey = null;
+  var backupToken = 0;
+  var restoreArmed = false;
+
+  // --- host channel ------------------------------------------------------
+
+  function post(message) {
+    parent.postMessage(message, "*");
+  }
+
+  function call(text) {
+    return new Promise(function (resolve, reject) {
+      var requestId = ++sequence;
+      pending.set(requestId, { resolve: resolve, reject: reject });
+      post({
+        v: 1, type: "invoke", requestId: requestId,
+        pluginId: PLUGIN_ID, commandId: COMMAND_ID, text: text
+      });
+    });
+  }
+
+  function request(asked) {
+    return call(JSON.stringify(asked)).then(function (answer) {
+      if (!answer || answer.ok !== true) {
+        var failure = (answer && answer.error) || { code: "runtime", message: "操作失败" };
+        var error = new Error(failure.message || "操作失败");
+        error.code = failure.code || "runtime";
+        throw error;
+      }
+      return answer;
+    });
+  }
+
+  var themed = [];
+
+  function applyTheme(message) {
+    root.dataset.scheme = message.scheme === "dark" ? "dark" : "light";
+    var tokens = message.tokens || {};
+    // A host that stops sending a token must fall back to this stylesheet's
+    // palette, not to the colour of the theme before it.
+    themed.forEach(function (name) {
+      if (!Object.prototype.hasOwnProperty.call(tokens, name)) {
+        root.style.removeProperty("--" + name);
+      }
+    });
+    themed = Object.keys(tokens);
+    themed.forEach(function (name) {
+      root.style.setProperty("--" + name, tokens[name]);
+    });
+  }
+
+  window.addEventListener("message", function (event) {
+    var message = event.data;
+    if (!message || message.v !== 1) return;
+    if (message.type === "theme") { applyTheme(message); return; }
+    if (message.type !== "result") return;
+    var waiter = pending.get(message.requestId);
+    if (!waiter) return;
+    pending.delete(message.requestId);
+    if (!message.ok) {
+      waiter.reject(new Error(message.error || "操作失败"));
+      return;
+    }
+    var answer;
+    try {
+      answer = JSON.parse(message.output || "{}");
+    } catch (parseError) {
+      waiter.reject(new Error("扩展返回的内容无法解析"));
+      return;
+    }
+    waiter.resolve(answer);
+  });
+
+  // --- helpers -----------------------------------------------------------
+
+  function cloneEntry(entry) {
+    return {
+      id: entry.id || "",
+      ip: entry.ip || "",
+      names: (entry.names || []).slice(),
+      comment: entry.comment || "",
+      enabled: entry.enabled !== false,
+      group: entry.group || ""
+    };
+  }
+
+  function workingCopy() {
+    return entries.map(cloneEntry);
+  }
+
+  function isDirty() {
+    return groupEdits.length > 0 || JSON.stringify(workingCopy()) !== baseline;
+  }
+
+  function setBusy(next) {
+    busy = next;
+    els.apply.disabled = next;
+    els.reload.disabled = next;
+    els.add.disabled = next;
+    els.filter.disabled = next;
+    els.groupAdd.disabled = next;
+    els.list.querySelectorAll("input, button").forEach(function (control) {
+      control.disabled = next;
+    });
+    els.groups.querySelectorAll("button").forEach(function (control) {
+      control.disabled = next;
+    });
+  }
+
+  function showNotice(text, tone, action) {
+    els.notice.hidden = false;
+    els.notice.dataset.tone = tone || "quiet";
+    els.noticeText.textContent = text;
+    els.noticeActions.textContent = "";
+    noticeRun = null;
+    if (action) {
+      noticeRun = action.run;
+      var button = document.createElement("button");
+      button.type = "button";
+      button.className = "btn";
+      button.textContent = action.label;
+      button.addEventListener("click", function () {
+        var run = noticeRun;
+        hideNotice();
+        if (run) run();
+      });
+      els.noticeActions.appendChild(button);
+    }
+  }
+
+  function hideNotice() {
+    els.notice.hidden = true;
+    els.noticeText.textContent = "";
+    els.noticeActions.textContent = "";
+    noticeRun = null;
+  }
+
+  function confirmNotice(text, label, run) {
+    showNotice(text, "danger", { label: label, run: run });
+  }
+
+  function icon(kind) {
+    var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("viewBox", "0 0 16 16");
+    svg.setAttribute("fill", "none");
+    svg.setAttribute("stroke", "currentColor");
+    svg.setAttribute("stroke-width", "1.5");
+    svg.setAttribute("stroke-linecap", "round");
+    svg.setAttribute("stroke-linejoin", "round");
+    svg.setAttribute("aria-hidden", "true");
+    var path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", kind === "edit"
+      ? "M10.5 3.5 12.5 5.5 6 12 3.5 12.5 4 10z"
+      : "M4 4.5h8M6.5 4.5v7M9.5 4.5v7M4.5 4.5l.6 8h5.8l.6-8M6.8 4.5V3h2.4v1.5");
+    svg.appendChild(path);
+    return svg;
+  }
+
+  function when(iso) {
+    if (!iso) return "";
+    var date = new Date(iso);
+    if (isNaN(date.getTime())) return "";
+    return date.toLocaleString("zh-CN", { hour12: false });
+  }
+
+  // A backup chip has room for the day and the minute, nothing more.
+  function whenShort(iso) {
+    if (!iso) return "";
+    var date = new Date(iso);
+    if (isNaN(date.getTime())) return "";
+    return date.toLocaleString("zh-CN", {
+      month: "2-digit", day: "2-digit",
+      hour: "2-digit", minute: "2-digit", hour12: false
+    });
+  }
+
+  function sizeLabel(bytes) {
+    if (!bytes) return "0 B";
+    if (bytes < 1024) return bytes + " B";
+    return (bytes / 1024).toFixed(bytes < 10240 ? 1 : 0) + " KB";
+  }
+
+  // --- rendering ---------------------------------------------------------
+
+  function matches(entry) {
+    if (selected === "") {
+      if (entry.group) return false;
+    } else if (selected !== null && entry.group !== selected) {
+      return false;
+    }
+    if (!filter) return true;
+    var needle = filter.toLowerCase();
+    if (entry.ip.toLowerCase().indexOf(needle) >= 0) return true;
+    if (entry.comment.toLowerCase().indexOf(needle) >= 0) return true;
+    if (entry.group.toLowerCase().indexOf(needle) >= 0) return true;
+    return entry.names.some(function (name) {
+      return name.toLowerCase().indexOf(needle) >= 0;
+    });
+  }
+
+  function render() {
+    var dirty = isDirty();
+    els.dirty.hidden = !dirty;
+    els.dirty.dataset.tone = dirty ? "warn" : "";
+    els.apply.disabled = busy || !dirty;
+    renderMeta();
+    renderGroups();
+    renderRail();
+
+    var visible = entries.filter(matches);
+    els.count.textContent = filter || selected !== null
+      ? visible.length + " / " + entries.length
+      : entries.length + " 条";
+
+    els.list.textContent = "";
+    // The rail is the grouping; the list is the file in its own order, and a
+    // row names its group only while every group is on screen.
+    var tagGroups = selected === null;
+    visible.forEach(function (entry) {
+      els.list.appendChild(row(entries.indexOf(entry), entry, tagGroups));
+    });
+
+    els.empty.hidden = visible.length !== 0;
+    els.empty.textContent = entries.length === 0
+      ? "还没有可编辑的条目。用「新增条目」添加一条，或在下面预览原文件。"
+      : "没有符合当前筛选的条目。";
+    els.loading.hidden = true;
+    renderFoot();
+  }
+
+  // The rail lists groups in the order they appear in the file. A group only
+  // exists while an entry names it: the heading comment is the group.
+  function railGroups() {
+    var order = [];
+    var counts = new Map();
+    entries.forEach(function (entry) {
+      if (!entry.group) return;
+      if (!counts.has(entry.group)) {
+        counts.set(entry.group, 0);
+        order.push(entry.group);
+      }
+      counts.set(entry.group, counts.get(entry.group) + 1);
+    });
+    return order.map(function (name) {
+      return { name: name, count: counts.get(name) };
+    });
+  }
+
+  function renderGroups() {
+    els.groupChoices.textContent = "";
+    railGroups().forEach(function (group) {
+      var option = document.createElement("option");
+      option.value = group.name;
+      els.groupChoices.appendChild(option);
+    });
+  }
+
+  function renderRail() {
+    var groups = railGroups();
+    if (selected !== null && selected !== "" &&
+        !groups.some(function (group) { return group.name === selected; })) {
+      selected = null;
+    }
+    var untagged = entries.filter(function (entry) { return !entry.group; }).length;
+    els.groups.textContent = "";
+    els.groups.appendChild(groupRow(null, "全部", entries.length, "all"));
+    // The fixed bucket keeps its own word: a file heading may well be named
+    // "未分组" itself, and two rows with one name would read as one.
+    if (untagged) {
+      els.groups.appendChild(groupRow("", "无分组", untagged));
+    }
+    // The file's own headings sit below the two fixed views.
+    if (groups.length) {
+      var separator = document.createElement("div");
+      separator.className = "rail-sep";
+      els.groups.appendChild(separator);
+    }
+    groups.forEach(function (group) {
+      els.groups.appendChild(groupRow(group.name, group.name, group.count));
+    });
+    els.groupTotal.textContent = groups.length ? groups.length + " 组" : "";
+  }
+
+  // One row: the name, then a fixed slot holding either the count or, while
+  // the row is hovered or focused, its rename and delete actions.
+  function groupRow(value, label, count, kind) {
+    var row = document.createElement("div");
+    row.className = "group-row";
+    row.dataset.selected = selected === value ? "true" : "false";
+    if (kind) row.dataset.kind = kind;
+
+    var main = document.createElement("button");
+    main.type = "button";
+    main.className = "group-main";
+    main.title = label;
+    main.setAttribute("aria-pressed", selected === value ? "true" : "false");
+    var name = document.createElement("span");
+    name.className = "group-name";
+    name.textContent = label;
+    main.appendChild(name);
+    main.addEventListener("click", function () { selectGroup(value); });
+
+    var slot = document.createElement("span");
+    slot.className = "group-slot";
+    var tally = document.createElement("span");
+    tally.className = "group-count";
+    tally.textContent = String(count);
+    slot.appendChild(tally);
+
+    if (value) {
+      var actions = document.createElement("span");
+      actions.className = "group-actions";
+      actions.appendChild(groupAction("edit", "重命名分组「" + value + "」", function () {
+        openGroupEditor(value);
+      }));
+      actions.appendChild(groupAction("delete", "删除分组「" + value + "」", function () {
+        deleteGroup(value);
+      }));
+      slot.appendChild(actions);
+    }
+    row.appendChild(main);
+    row.appendChild(slot);
+    return row;
+  }
+
+  function groupAction(kind, label, run) {
+    var button = document.createElement("button");
+    button.type = "button";
+    button.className = "icon";
+    button.dataset.act = kind;
+    button.title = label;
+    button.setAttribute("aria-label", label);
+    button.disabled = busy;
+    button.appendChild(icon(kind));
+    button.addEventListener("click", run);
+    return button;
+  }
+
+  function selectGroup(value) {
+    selected = value;
+    closeGroupEditor();
+    render();
+  }
+
+  // --- group management --------------------------------------------------
+
+  function openGroupEditor(name) {
+    groupEditing = name;
+    els.groupEditor.hidden = false;
+    els.groupError.hidden = true;
+    els.groupName.value = name === null ? "" : name;
+    els.groupName.focus();
+    els.groupName.select();
+  }
+
+  function closeGroupEditor() {
+    groupEditing = null;
+    els.groupEditor.hidden = true;
+    els.groupError.hidden = true;
+  }
+
+  function groupFailure(message) {
+    els.groupError.textContent = message;
+    els.groupError.hidden = false;
+  }
+
+  function saveGroupEditor(event) {
+    event.preventDefault();
+    var name = els.groupName.value.trim();
+    if (!name) { groupFailure("请填写分组名。"); return; }
+    if (name.length > 120) { groupFailure("分组名不能超过 120 个字符。"); return; }
+    if (/[\r\n#]/.test(name)) { groupFailure("分组名不能包含换行或 #。"); return; }
+    var taken = railGroups().some(function (group) { return group.name === name; });
+    if (groupEditing === null) {
+      if (taken) { groupFailure("已经有「" + name + "」这个分组。"); return; }
+      // A group exists only while an entry names it, so a new group starts by
+      // adding the entry that creates its heading.
+      closeGroupEditor();
+      openEditor(null, name);
+      return;
+    }
+    var from = groupEditing;
+    if (name === from) { closeGroupEditor(); return; }
+    if (taken) { groupFailure("已经有「" + name + "」这个分组。"); return; }
+    entries.forEach(function (entry) {
+      if (entry.group === from) entry.group = name;
+    });
+    groupEdits.push({ kind: "rename", from: from, to: name });
+    if (selected === from) selected = name;
+    closeGroupEditor();
+    render();
+  }
+
+  function deleteGroup(name) {
+    var count = entries.filter(function (entry) { return entry.group === name; }).length;
+    confirmNotice("删除分组「" + name + "」会同时删除其中的 " + count + " 条条目。",
+      "删除分组", function () {
+        entries = entries.filter(function (entry) { return entry.group !== name; });
+        groupEdits.push({ kind: "remove", group: name });
+        selected = null;
+        editing = null;
+        els.editor.hidden = true;
+        els.editorError.hidden = true;
+        render();
+      });
+  }
+
+  function row(index, entry, tagGroup) {
+    var wrapper = document.createElement("div");
+    wrapper.className = "row";
+    wrapper.dataset.index = String(index);
+    wrapper.dataset.enabled = entry.enabled ? "true" : "false";
+    wrapper.dataset.editing = editing === index ? "true" : "false";
+
+    var label = document.createElement("label");
+    label.className = "switch";
+    var toggle = document.createElement("input");
+    toggle.type = "checkbox";
+    toggle.checked = entry.enabled;
+    toggle.dataset.toggle = String(index);
+    toggle.disabled = busy;
+    toggle.setAttribute("aria-label", entry.enabled ? "停用这一条" : "启用这一条");
+    var track = document.createElement("span");
+    track.className = "track";
+    label.appendChild(toggle);
+    label.appendChild(track);
+    wrapper.appendChild(label);
+
+    var main = document.createElement("div");
+    main.className = "row-main";
+    var line = document.createElement("div");
+    line.className = "row-line";
+    var ip = document.createElement("span");
+    ip.className = "ip";
+    ip.textContent = entry.ip;
+    var names = document.createElement("span");
+    names.className = "names";
+    names.textContent = entry.names.join(" ");
+    line.appendChild(ip);
+    line.appendChild(names);
+    if (tagGroup && entry.group) {
+      var tag = document.createElement("span");
+      tag.className = "group-tag";
+      tag.textContent = entry.group;
+      line.appendChild(tag);
+    }
+    main.appendChild(line);
+    if (entry.comment) {
+      var comment = document.createElement("p");
+      comment.className = "comment";
+      comment.textContent = entry.comment;
+      main.appendChild(comment);
+    }
+    wrapper.appendChild(main);
+
+    var actions = document.createElement("div");
+    actions.className = "row-actions";
+    var edit = document.createElement("button");
+    edit.type = "button";
+    edit.className = "icon";
+    edit.dataset.act = "edit";
+    edit.dataset.index = String(index);
+    edit.title = "编辑";
+    edit.setAttribute("aria-label", "编辑 " + entry.ip);
+    edit.disabled = busy;
+    edit.appendChild(icon("edit"));
+    var remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "icon";
+    remove.dataset.act = "delete";
+    remove.dataset.index = String(index);
+    remove.title = "删除";
+    remove.setAttribute("aria-label", "删除 " + entry.ip);
+    remove.disabled = busy;
+    remove.appendChild(icon("delete"));
+    actions.appendChild(edit);
+    actions.appendChild(remove);
+    wrapper.appendChild(actions);
+    return wrapper;
+  }
+
+  // The line under the title answers "what is in this file" at a glance; the
+  // footer keeps the path, the write mode and the last backup.
+  function renderMeta() {
+    var groups = railGroups().length;
+    var disabled = entries.filter(function (entry) { return !entry.enabled; }).length;
+    var parts = [entries.length + " 条条目"];
+    if (groups) parts.push(groups + " 个分组");
+    if (disabled) parts.push(disabled + " 条停用");
+    if (snapshot && snapshot.otherLines > 0) {
+      parts.push(snapshot.otherLines + " 行原样保留");
+    }
+    els.meta.textContent = parts.join(" · ");
+  }
+
+  function renderFoot() {
+    els.footLine.textContent = "";
+    var parts = [snapshot ? snapshot.path : "/etc/hosts"];
+    parts.push(snapshot && snapshot.needsAuthorization ? "写入时需管理员授权" : "可直接写入");
+    var backups = (snapshot && snapshot.backups) || [];
+    if (snapshot && snapshot.backupError) {
+      parts.push("备份暂不可用");
+    } else if (backups.length) {
+      parts.push("最近备份 " + when(backups[0].at));
+    }
+    parts.forEach(function (part) {
+      var item = document.createElement("span");
+      item.textContent = part;
+      els.footLine.appendChild(item);
+    });
+    els.backupsOpen.hidden = !backups.length;
+    els.backupsOpen.textContent = backups.length ? "备份 " + backups.length : "备份";
+    els.backupsOpen.disabled = busy || !backups.length;
+  }
+
+  // --- editor ------------------------------------------------------------
+
+  function openEditor(index, group) {
+    editing = index;
+    els.editor.hidden = false;
+    els.editorError.hidden = true;
+    if (index === null) {
+      els.editorTitle.textContent = "新增条目";
+      els.fieldIP.value = "";
+      els.fieldNames.value = "";
+      els.fieldComment.value = "";
+      els.fieldGroup.value = group === undefined ? (selected || "") : group;
+      els.fieldGroup.disabled = false;
+      els.editorHint.hidden = false;
+      els.editorHint.textContent = els.fieldGroup.value
+        ? "保存后条目会出现在「" + els.fieldGroup.value + "」分组里；分组就是文件里的一条注释行。"
+        : "不填分组时，条目会放在文件末尾。";
+    } else {
+      var entry = entries[index];
+      els.editorTitle.textContent = "编辑条目";
+      els.fieldIP.value = entry.ip;
+      els.fieldNames.value = entry.names.join(" ");
+      els.fieldComment.value = entry.comment;
+      els.fieldGroup.value = entry.group;
+      els.fieldGroup.disabled = true;
+      els.editorHint.hidden = false;
+      els.editorHint.textContent = "分组由文件里条目前面的注释行决定；要改整个分组，请用左侧的重命名或删除。";
+    }
+    els.fieldIP.focus();
+    render();
+  }
+
+  function closeEditor() {
+    editing = null;
+    els.editor.hidden = true;
+    els.editorError.hidden = true;
+    render();
+  }
+
+  function editorError(message) {
+    els.editorError.textContent = message;
+    els.editorError.hidden = false;
+  }
+
+  function saveEditor(event) {
+    event.preventDefault();
+    var ip = els.fieldIP.value.trim();
+    var names = els.fieldNames.value.split(/[\s,]+/).filter(Boolean);
+    var comment = els.fieldComment.value.trim();
+    if (!ip) { editorError("请填写地址。"); return; }
+    if (!names.length) { editorError("请至少填写一个主机名。"); return; }
+    if (editing === null) {
+      var group = els.fieldGroup.disabled ? "" : els.fieldGroup.value.trim();
+      var added = { id: "", ip: ip, names: names, comment: comment, enabled: true, group: group };
+      var at = entries.length;
+      for (var index = 0; index < entries.length; index++) {
+        if (entries[index].group === group) at = index + 1;
+      }
+      entries.splice(at, 0, added);
+    } else {
+      var target = entries[editing];
+      target.ip = ip;
+      target.names = names;
+      target.comment = comment;
+    }
+    closeEditor();
+  }
+
+  // --- actions -----------------------------------------------------------
+
+  function snapshotOf(answer) {
+    if (!answer || !answer.snapshot) {
+      var error = new Error("扩展没有返回文件内容，请重新加载。");
+      error.code = "runtime";
+      throw error;
+    }
+    return answer.snapshot;
+  }
+
+  function adopt(next, quiet) {
+    // A fresh file means the open view is stale; closing it is the honest
+    // move, and the footer offers the new count straight away.
+    if (viewMode) closeFileView();
+    snapshot = next;
+    entries = (next.entries || []).map(cloneEntry);
+    groupEdits = [];
+    closeGroupEditor();
+    baseline = JSON.stringify(workingCopy());
+    hideNotice();
+    render();
+    if (!quiet) window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function load() {
+    if (busy) return;
+    setBusy(true);
+    els.loading.hidden = entries.length !== 0;
+    request({ action: "load" })
+      .then(function (answer) { adopt(snapshotOf(answer)); })
+      .catch(handleError)
+      .then(function () {
+        setBusy(false);
+        els.loading.hidden = true;
+        render();
+      });
+  }
+
+  function applyEdits() {
+    if (busy) return;
+    setBusy(true);
+    request({ action: "apply", baseDigest: snapshot ? snapshot.digest : "",
+      entries: workingCopy(), groups: groupEdits })
+      .then(function (answer) {
+        var next = snapshotOf(answer);
+        var written = next.written;
+        var changed = Boolean(next.changed);
+        adopt(next, true);
+        if (!changed) {
+          showNotice("文件没有变化，未写入。", "quiet");
+        } else if (written === "authorized") {
+          showNotice("已写入，系统管理员已授权。上一版本已保存为备份。", "success");
+        } else {
+          showNotice("已写入。上一版本已保存为备份。", "success");
+        }
+      })
+      .catch(handleError)
+      .then(function () {
+        setBusy(false);
+        render();
+      });
+  }
+
+  function reload() {
+    if (busy) return;
+    var run = load;
+    if (!isDirty()) { run(); return; }
+    confirmNotice("重新加载会丢弃还没写入的改动。", "丢弃并重新加载", function () {
+      run();
+    });
+  }
+
+  // --- preview and backups -----------------------------------------------
+
+  // The file as a file: one numbered row per line, comments quiet. Nothing
+  // read from disk is ever parsed as markup.
+  function renderCode(target, text) {
+    target.textContent = "";
+    var lines = text.split("\n");
+    if (lines.length && lines[lines.length - 1] === "") lines.pop();
+    lines.forEach(function (line, index) {
+      var row = document.createElement("div");
+      row.className = "code-line";
+      row.dataset.kind = line === ""
+        ? "blank"
+        : (line.charAt(0) === "#" ? "comment" : "entry");
+      var number = document.createElement("span");
+      number.className = "code-number";
+      number.textContent = String(index + 1);
+      var body = document.createElement("span");
+      body.className = "code-text";
+      body.textContent = line;
+      row.appendChild(number);
+      row.appendChild(body);
+      target.appendChild(row);
+    });
+    return lines.length;
+  }
+
+  // The file view is the whole frame: one component shows the write preview
+  // and a stored version. A long file scrolls the screen, never a box in it.
+  function openFileView(mode) {
+    viewMode = mode;
+    var backup = mode === "backup";
+    els.fileEyebrow.textContent = backup ? "备份" : "写入";
+    els.fileTitle.textContent = backup ? "已保存的版本" : "写入预览";
+    els.backupChoices.hidden = !backup;
+    els.backupRestore.hidden = !backup;
+    els.fileView.hidden = false;
+    els.fileClose.focus();
+  }
+
+  function closeFileView() {
+    viewMode = null;
+    backupToken++;
+    backupKey = null;
+    restoreArmed = false;
+    els.backupRestore.textContent = "恢复这一份";
+    els.backupRestore.disabled = true;
+    els.fileView.hidden = true;
+    els.fileText.textContent = "";
+    els.fileMeta.textContent = "";
+  }
+
+  function preview() {
+    if (busy) return;
+    setBusy(true);
+    request({ action: "preview", entries: workingCopy(), groups: groupEdits })
+      .then(function (answer) {
+        var lines = renderCode(els.fileText, answer.preview || "");
+        els.fileText.scrollTop = 0;
+        els.fileMeta.textContent = lines + " 行" +
+          (isDirty() ? "" : " · 与当前文件相同");
+        openFileView("preview");
+      })
+      .catch(handleError)
+      .then(function () { setBusy(false); });
+  }
+
+  function openBackups() {
+    if (busy || !snapshot || !snapshot.backups || !snapshot.backups.length) return;
+    openFileView("backup");
+    renderBackupChoices();
+    selectBackup(snapshot.backups[0].key);
+  }
+
+  function renderBackupChoices() {
+    els.backupChoices.textContent = "";
+    ((snapshot && snapshot.backups) || []).forEach(function (backup) {
+      var choice = document.createElement("button");
+      choice.type = "button";
+      choice.className = "backup-choice";
+      choice.setAttribute("role", "tab");
+      choice.dataset.key = backup.key;
+      choice.title = when(backup.at) + " · " + sizeLabel(backup.size);
+      choice.textContent = whenShort(backup.at);
+      choice.disabled = busy;
+      choice.addEventListener("click", function () { selectBackup(backup.key); });
+      els.backupChoices.appendChild(choice);
+    });
+  }
+
+  function markBackupChoice() {
+    Array.prototype.forEach.call(els.backupChoices.children, function (choice) {
+      var on = choice.dataset.key === backupKey ? "true" : "false";
+      choice.dataset.selected = on;
+      choice.setAttribute("aria-selected", on);
+    });
+  }
+
+  function selectBackup(key) {
+    backupKey = key;
+    restoreArmed = false;
+    els.backupRestore.textContent = "恢复这一份";
+    els.backupRestore.disabled = true;
+    markBackupChoice();
+    els.fileText.textContent = "";
+    els.fileMeta.textContent = "读取中…";
+    var token = ++backupToken;
+    request({ action: "backup", backupKey: key })
+      .then(function (answer) {
+        if (token !== backupToken) return;
+        if (!answer.backup) throw new Error("扩展没有返回这份备份。");
+        renderCode(els.fileText, answer.backup.text || "");
+        els.fileText.scrollTop = 0;
+        els.fileMeta.textContent = when(answer.backup.at) + " · " +
+          answer.backup.lines + " 行 · " + sizeLabel(answer.backup.size);
+        els.backupRestore.disabled = false;
+      })
+      .catch(function (error) {
+        if (token !== backupToken) return;
+        els.fileMeta.textContent = error && error.message
+          ? error.message
+          : "无法读取这份备份。";
+      });
+  }
+
+  // Restoring asks once inside the view: the first click arms the button,
+  // the second one writes, and the page is never left waiting on a notice
+  // hidden behind the file.
+  function restoreBackup() {
+    if (busy || !backupKey || els.backupRestore.disabled) return;
+    if (!restoreArmed) {
+      restoreArmed = true;
+      els.backupRestore.textContent = "确认恢复";
+      els.fileMeta.textContent = "当前文件会先另存为一份备份，再写入这份版本。";
+      return;
+    }
+    var key = backupKey;
+    els.backupRestore.disabled = true;
+    setBusy(true);
+    request({ action: "revert", backupKey: key })
+      .then(function (answer) {
+        closeFileView();
+        adopt(snapshotOf(answer), true);
+        showNotice("已恢复备份。恢复前的版本也存了一份。", "success");
+      })
+      .catch(handleError)
+      .then(function () {
+        setBusy(false);
+        render();
+      });
+  }
+
+  function handleError(error) {
+    var text = error && error.message ? error.message : "操作失败";
+    if (error && error.code === "stale") {
+      showNotice(text, "danger", { label: "重新加载", run: load });
+      return;
+    }
+    if (error && error.code === "cancelled") {
+      showNotice(text, "quiet");
+      return;
+    }
+    if (error && error.code === "invalid") {
+      // The runtime names the row it refused ("第 3 条 …"); put the person
+      // back on that row instead of a generic notice.
+      var named = /第 (\d+) 条/.exec(text);
+      var index = named ? Number(named[1]) - 1 : -1;
+      if (index >= 0 && entries[index]) {
+        openEditor(index);
+        editorError(text);
+        return;
+      }
+      showNotice(text, "danger");
+      return;
+    }
+    showNotice(text, "danger");
+  }
+
+  // --- wiring ------------------------------------------------------------
+
+  els.apply.addEventListener("click", applyEdits);
+  els.reload.addEventListener("click", reload);
+  els.add.addEventListener("click", function () { openEditor(null); });
+  els.editorCancel.addEventListener("click", closeEditor);
+  els.editor.addEventListener("submit", saveEditor);
+  els.groupAdd.addEventListener("click", function () { openGroupEditor(null); });
+  els.groupCancel.addEventListener("click", closeGroupEditor);
+  els.groupEditor.addEventListener("submit", saveGroupEditor);
+  els.previewOpen.addEventListener("click", preview);
+  els.backupsOpen.addEventListener("click", openBackups);
+  els.fileClose.addEventListener("click", closeFileView);
+  els.fileDismiss.addEventListener("click", closeFileView);
+  els.backupRestore.addEventListener("click", restoreBackup);
+  els.filter.addEventListener("input", function () {
+    filter = els.filter.value.trim();
+    render();
+  });
+  els.list.addEventListener("change", function (event) {
+    var toggle = event.target.closest("input[data-toggle]");
+    if (!toggle) return;
+    var index = Number(toggle.dataset.toggle);
+    if (!entries[index]) return;
+    entries[index].enabled = toggle.checked;
+    render();
+  });
+  els.list.addEventListener("click", function (event) {
+    var button = event.target.closest("button[data-act]");
+    if (!button) return;
+    var index = Number(button.dataset.index);
+    if (!entries[index]) return;
+    if (button.dataset.act === "edit") {
+      openEditor(index);
+      return;
+    }
+    if (button.dataset.act === "delete") {
+      entries.splice(index, 1);
+      editing = null;
+      els.editor.hidden = true;
+      render();
+    }
+  });
+  window.addEventListener("keydown", function (event) {
+    if (event.key !== "Escape") return;
+    if (viewMode) { closeFileView(); return; }
+    if (!els.editor.hidden) { closeEditor(); return; }
+    if (!els.groupEditor.hidden) { closeGroupEditor(); return; }
+    if (!els.notice.hidden) hideNotice();
+  });
+
+  post({ v: 1, type: "ready" });
+  load();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,40 @@
+{
+  "manifestVersion": 3,
+  "kind": "ui",
+  "id": "com.mypaste.hosts",
+  "name": "Hosts",
+  "version": "1.1.5",
+  "description": "在设置窗口里管理 /etc/hosts：按文件里的注释分组查看条目，启用或停用、新增与删除地址和主机名，写入前自动保留上一份，每次写入的版本都能在页面里翻看并恢复。读取、解析与拼回都在扩展自己的进程里完成；写入先用你的权限，系统不允许时由 macOS 弹出一次管理员授权，文件始终是本机这一份，不经过网络。",
+  "capabilities": [
+    "entity.read",
+    "storage.plugin"
+  ],
+  "runtime": {
+    "protocolVersion": 2,
+    "mode": "command",
+    "entrypoint": "hosts"
+  },
+  "menus": [
+    {
+      "id": "hosts.panel",
+      "title": "Hosts",
+      "entry": "panel.html",
+      "order": 53
+    }
+  ],
+  "commands": [
+    {
+      "id": "hosts.request",
+      "title": "Hosts 操作",
+      "description": "读取 /etc/hosts、预览应用结果、查看已保存的备份、写入或恢复备份；写入前先把当前文件存进扩展的私有存储，需要时由 macOS 请求管理员授权。",
+      "capabilities": [
+        "entity.read",
+        "storage.plugin"
+      ],
+      "output": [
+        "text"
+      ],
+      "longRunning": true
+    }
+  ]
+}
